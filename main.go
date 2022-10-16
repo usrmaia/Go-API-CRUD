@@ -1,17 +1,88 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "ola mundo")
+// TODO - deve retornar json em minúsculo
+type Part struct {
+	Id    int     `json:"id"`
+	Name  string  `json:"name"`
+	Brand string  `json:"brand"`
+	Value float32 `json:"value"`
+}
+
+var Parts []Part = []Part{
+	Part{
+		Id:    1,
+		Name:  "Luva para Motociclista Dedo Longo Tam. P Material Emborrachado e Couro, Branco/ Preto",
+		Brand: "Multilaser",
+		Value: 47.64,
+	},
+	Part{
+		Id:    2,
+		Name:  "Capacete Moto R8 Pro Tork 56 Viseira Fume Preto/Vermelho",
+		Brand: "Tork",
+		Value: 169.90,
+	},
+	Part{
+		Id:    3,
+		Name:  "Lenço de cabeça, Romacci Máscara facial Fleece máscara facial cachecol para exterior à prova de vento à prova de frio equipamento de equitação para máscara de inverno",
+		Brand: "Romacci",
+		Value: 99.19,
+	},
+}
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintf(w, "Home")
+}
+
+func getPartsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json_encoder := json.NewEncoder(w)
+	json_encoder.Encode(Parts)
+}
+
+func addPartHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	data, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		return
+	}
+
+	var new_part Part
+	json.Unmarshal(data, &new_part)
+	// TODO - Garantir que new_part seja um valor válido (não fazio ou com value negativo por exemplo)
+	new_part.Id = len(Parts) + 1
+	Parts = append(Parts, new_part)
+
+	json_encoder := json.NewEncoder(w)
+	json_encoder.Encode(new_part)
+}
+
+func handler() {
+	http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/parts", getPartsHandler)
+	http.HandleFunc("/part/add", addPartHandler)
 }
 
 func main() {
-	http.HandleFunc("/", handler)
+	handler()
 	fmt.Println("Server On")
 	addr := ":1357"
-	http.ListenAndServe(addr, nil)
+	log.Fatal(http.ListenAndServe(addr, nil))
 }
