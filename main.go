@@ -108,11 +108,82 @@ func getPartHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func delPartHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "DELETE" {
+		return
+	}
+
+	slice_url := strings.Split(r.URL.Path, "/")
+
+	if len(slice_url) > 5 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	id, _ := strconv.Atoi(slice_url[3])
+
+	w.Header().Set("Content-Type", "application/json")
+
+	to_del := -1
+	for i, part := range Parts {
+		if part.Id == id {
+			to_del = i
+			break
+		}
+	}
+
+	if to_del == -1 {
+		return
+	}
+
+	l_parts := Parts[0:to_del]
+	len_parts := len(Parts)
+	r_parts := Parts[(to_del + 1):len_parts]
+	Parts = append(l_parts, r_parts...)
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func upPartHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "PUT" {
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	data, err := ioutil.ReadAll(r.Body)
+
+	if err != nil {
+		return
+	}
+
+	var up_part Part
+	json.Unmarshal(data, &up_part)
+	// TODO - Garantir que new_part seja um valor válido (não fazio ou com value negativo por exemplo)
+	for i, part := range Parts {
+		if part.Id == up_part.Id {
+			fmt.Println(up_part, i)
+			Parts[i].Name = up_part.Name
+			Parts[i].Brand = up_part.Brand
+			Parts[i].Value = up_part.Value
+
+			json_encoder := json.NewEncoder(w)
+			json_encoder.Encode(up_part)
+			w.WriteHeader(http.StatusOK)
+			break
+		}
+	}
+
+	w.WriteHeader(http.StatusBadRequest)
+}
+
 func handler() {
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/parts", getPartsHandler)
 	http.HandleFunc("/part/", getPartHandler)
 	http.HandleFunc("/part/add", addPartHandler)
+	http.HandleFunc("/part/del/", delPartHandler)
+	http.HandleFunc("/part/up", upPartHandler)
 }
 
 func main() {
