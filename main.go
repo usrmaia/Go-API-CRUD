@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 // TODO - deve retornar json em minúsculo
@@ -49,6 +51,7 @@ func getPartsHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json_encoder := json.NewEncoder(w)
 	json_encoder.Encode(Parts)
+	w.WriteHeader(http.StatusOK)
 }
 
 func addPartHandler(w http.ResponseWriter, r *http.Request) {
@@ -72,11 +75,43 @@ func addPartHandler(w http.ResponseWriter, r *http.Request) {
 
 	json_encoder := json.NewEncoder(w)
 	json_encoder.Encode(new_part)
+	w.WriteHeader(http.StatusCreated)
+}
+
+func getPartHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		return
+	}
+
+	slice_url := strings.Split(r.URL.Path, "/")
+
+	if len(slice_url) > 3 {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	id, _ := strconv.Atoi(slice_url[2])
+	// TODO - Lidar com err (_) caso atoi nao consigo converter para inteiro
+	// ex: /part/a
+
+	w.Header().Set("Content-Type", "application/json")
+
+	for _, part := range Parts {
+		if part.Id == id {
+			json_encoder := json.NewEncoder(w)
+			json_encoder.Encode(part)
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNotFound)
+
 }
 
 func handler() {
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/parts", getPartsHandler)
+	http.HandleFunc("/part/", getPartHandler)
 	http.HandleFunc("/part/add", addPartHandler)
 }
 
