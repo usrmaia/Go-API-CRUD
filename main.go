@@ -1,6 +1,7 @@
 package main
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -8,6 +9,8 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 // TODO - deve retornar json em minúsculo
@@ -18,26 +21,7 @@ type Part struct {
 	Value float32 `json:"value"`
 }
 
-var Parts []Part = []Part{
-	Part{
-		Id:    1,
-		Name:  "Luva para Motociclista Dedo Longo Tam. P Material Emborrachado e Couro, Branco/ Preto",
-		Brand: "Multilaser",
-		Value: 47.64,
-	},
-	Part{
-		Id:    2,
-		Name:  "Capacete Moto R8 Pro Tork 56 Viseira Fume Preto/Vermelho",
-		Brand: "Tork",
-		Value: 169.90,
-	},
-	Part{
-		Id:    3,
-		Name:  "Lenço de cabeça, Romacci Máscara facial Fleece máscara facial cachecol para exterior à prova de vento à prova de frio equipamento de equitação para máscara de inverno",
-		Brand: "Romacci",
-		Value: 99.19,
-	},
-}
+var db *sql.DB
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Home")
@@ -49,6 +33,34 @@ func getPartsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+
+	var rows *sql.Rows
+	var err error
+	rows, err = db.Query(`select id, name, brand, value from Part`)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var Parts []Part
+	for rows.Next() {
+		var part Part
+		err = rows.Scan(part.Id, part.Name, part.Brand, part.Value)
+
+		if err != nil {
+			continue
+		}
+
+		Parts = append(Parts, part)
+	}
+
+	err = rows.Close()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
 	json_encoder := json.NewEncoder(w)
 	json_encoder.Encode(Parts)
 	w.WriteHeader(http.StatusOK)
@@ -186,7 +198,23 @@ func handler() {
 	http.HandleFunc("/part/up", upPartHandler)
 }
 
+func openDB() {
+	var err error
+	db, err = sql.Open("mysql", "root:xniC6DH rZcN84bxniC6DH rZcN84b@tcp(localhost:3306)/suzana_motorcycle_parts")
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	err = db.Ping()
+
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+}
+
 func main() {
+	openDB()
 	handler()
 	fmt.Println("Server On")
 	addr := ":1357"
