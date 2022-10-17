@@ -46,7 +46,8 @@ func getPartsHandler(w http.ResponseWriter, r *http.Request) {
 	var Parts []Part
 	for rows.Next() {
 		var part Part
-		err = rows.Scan(part.Id, part.Name, part.Brand, part.Value)
+		err = rows.Scan(&part.Id, &part.Name, &part.Brand, &part.Value)
+		fmt.Println(part)
 
 		if err != nil {
 			continue
