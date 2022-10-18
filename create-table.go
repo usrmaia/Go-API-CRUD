@@ -33,7 +33,7 @@ func main() {
 	_, err = db.Exec(`
 		create table if not exists Part (
 			id int not null auto_increment,
-			name varchar(500) not null,
+			name varchar(500) not null unique,
 			brand varchar(50) not null,
 			value float not null,
 			primary key (id)
