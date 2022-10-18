@@ -145,26 +145,32 @@ func delPartHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	id, _ := strconv.Atoi(slice_url[3])
+	//vendo se id existe
+	row := db.QueryRow(`
+		select id 
+		from Part
+		where id = ? 
+	`, id)
+	var temp_id int
+	var err error
+	err = row.Scan(&temp_id)
 
-	w.Header().Set("Content-Type", "application/json")
-
-	to_del := -1
-	for i, part := range Parts {
-		if part.Id == id {
-			to_del = i
-			break
-		}
-	}
-
-	if to_del == -1 {
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	l_parts := Parts[0:to_del]
-	len_parts := len(Parts)
-	r_parts := Parts[(to_del + 1):len_parts]
-	Parts = append(l_parts, r_parts...)
+	_, err = db.Exec(`
+		delete from Part
+		where id = ?
+	`, id)
 
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
 }
 
