@@ -32,8 +32,6 @@ func getPartsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
 	var rows *sql.Rows
 	var err error
 	rows, err = db.Query(`select id, name, brand, value from Part`)
@@ -47,7 +45,6 @@ func getPartsHandler(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var part Part
 		err = rows.Scan(&part.Id, &part.Name, &part.Brand, &part.Value)
-		fmt.Println(part)
 
 		if err != nil {
 			continue
@@ -62,9 +59,9 @@ func getPartsHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json_encoder := json.NewEncoder(w)
 	json_encoder.Encode(Parts)
-	w.WriteHeader(http.StatusOK)
 }
 
 func addPartHandler(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +69,9 @@ func addPartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := ioutil.ReadAll(r.Body)
+	var data []byte
+	var err error
+	data, err = ioutil.ReadAll(r.Body)
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -82,7 +81,8 @@ func addPartHandler(w http.ResponseWriter, r *http.Request) {
 	var new_part Part
 	json.Unmarshal(data, &new_part)
 
-	_, err = db.Exec(`
+	var result sql.Result
+	result, err = db.Exec(`
 		insert into Part (name, brand, value) values
 		(?, ?, ?)
 	`, new_part.Name, new_part.Brand, new_part.Value)
@@ -92,10 +92,19 @@ func addPartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var id int64
+	id, err = result.LastInsertId()
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	new_part.Id = int(id)
+
 	w.Header().Set("Content-Type", "application/json")
-	//json_encoder := json.NewEncoder(w)
-	//json_encoder.Encode(new_part)
-	w.WriteHeader(http.StatusCreated)
+	json_encoder := json.NewEncoder(w)
+	json_encoder.Encode(new_part)
 }
 
 func getPartHandler(w http.ResponseWriter, r *http.Request) {
@@ -110,20 +119,24 @@ func getPartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, _ := strconv.Atoi(slice_url[2])
-	// TODO - Lidar com err (_) caso atoi nao consigo converter para inteiro
-	// ex: /part/a
-
-	var rows *sql.Rows
+	var id int
 	var err error
-	rows, err = db.Query(`
+	id, err = strconv.Atoi(slice_url[2])
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	var row *sql.Row
+	row = db.QueryRow(`
 		select id, name, brand, value 
 		from Part
-		where %d = id
+		where id = ?
 	`, id)
 
 	var part Part
-	err = rows.Scan(&part.Id, &part.Name, &part.Brand, &part.Value)
+	err = row.Scan(&part.Id, &part.Name, &part.Brand, &part.Value)
 
 	if err != nil {
 		log.Panicln(err.Error())
@@ -131,12 +144,9 @@ func getPartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = rows.Close()
-
 	w.Header().Set("Content-Type", "application/json")
 	json_encoder := json.NewEncoder(w)
 	json_encoder.Encode(part)
-	w.WriteHeader(http.StatusAccepted)
 }
 
 func delPartHandler(w http.ResponseWriter, r *http.Request) {
@@ -151,16 +161,24 @@ func delPartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, _ := strconv.Atoi(slice_url[3])
-	//vendo se id existe
+	var id int
+	var err error
+	id, err = strconv.Atoi(slice_url[3])
+
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	//id exists
 	row := db.QueryRow(`
-		select id 
+		select id, name, brand, value
 		from Part
 		where id = ? 
 	`, id)
-	var temp_id int
-	var err error
-	err = row.Scan(&temp_id)
+
+	var temp_part Part
+	err = row.Scan(&temp_part.Id, &temp_part.Name, &temp_part.Brand, &temp_part.Value)
 
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -179,6 +197,8 @@ func delPartHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
+	json_encoder := json.NewEncoder(w)
+	json_encoder.Encode(temp_part)
 }
 
 func upPartHandler(w http.ResponseWriter, r *http.Request) {
@@ -186,11 +206,12 @@ func upPartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
-	data, err := ioutil.ReadAll(r.Body)
+	var data []byte
+	var err error
+	data, err = ioutil.ReadAll(r.Body)
 
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -199,15 +220,17 @@ func upPartHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Part existe
 	row := db.QueryRow(`
-		select id, name, brand, value
+		select id
 		from Part
 		where id = ?
-	`, up_part.Id)
+		`, up_part.Id)
 
-	var temp_part Part
-	err = row.Scan(&temp_part.Id, &temp_part.Name, &temp_part.Brand, &temp_part.Value)
+	var temp_id int
+	err = row.Scan(&temp_id)
 
 	if err != nil {
+		fmt.Println(temp_id)
+		fmt.Println(up_part)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
@@ -216,13 +239,15 @@ func upPartHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = db.Exec(`
 		update Part 
 		set name = ?, brand = ?, value = ?
-	`, up_part.Name, up_part.Brand, up_part.Value)
+		where id = ?
+		`, up_part.Name, up_part.Brand, up_part.Value, up_part.Id)
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json_encoder := json.NewEncoder(w)
 	json_encoder.Encode(up_part)
 	w.WriteHeader(http.StatusOK)
