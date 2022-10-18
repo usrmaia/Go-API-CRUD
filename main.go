@@ -72,22 +72,29 @@ func addPartHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-
 	data, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	var new_part Part
 	json.Unmarshal(data, &new_part)
-	// TODO - Garantir que new_part seja um valor válido (não fazio ou com value negativo por exemplo)
-	new_part.Id = len(Parts) + 1
-	Parts = append(Parts, new_part)
 
-	json_encoder := json.NewEncoder(w)
-	json_encoder.Encode(new_part)
+	_, err = db.Exec(`
+		insert into Part (name, brand, value) values
+		(?, ?, ?)
+	`, new_part.Name, new_part.Brand, new_part.Value)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	//json_encoder := json.NewEncoder(w)
+	//json_encoder.Encode(new_part)
 	w.WriteHeader(http.StatusCreated)
 }
 
