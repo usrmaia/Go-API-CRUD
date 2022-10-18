@@ -107,18 +107,29 @@ func getPartHandler(w http.ResponseWriter, r *http.Request) {
 	// TODO - Lidar com err (_) caso atoi nao consigo converter para inteiro
 	// ex: /part/a
 
-	w.Header().Set("Content-Type", "application/json")
+	var rows *sql.Rows
+	var err error
+	rows, err = db.Query(`
+		select id, name, brand, value 
+		from Part
+		where %d = id
+	`, id)
 
-	for _, part := range Parts {
-		if part.Id == id {
-			json_encoder := json.NewEncoder(w)
-			json_encoder.Encode(part)
-			w.WriteHeader(http.StatusAccepted)
-			return
-		}
+	var part Part
+	err = rows.Scan(&part.Id, &part.Name, &part.Brand, &part.Value)
+
+	if err != nil {
+		log.Panicln(err.Error())
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
-	w.WriteHeader(http.StatusNotFound)
 
+	err = rows.Close()
+
+	w.Header().Set("Content-Type", "application/json")
+	json_encoder := json.NewEncoder(w)
+	json_encoder.Encode(part)
+	w.WriteHeader(http.StatusAccepted)
 }
 
 func delPartHandler(w http.ResponseWriter, r *http.Request) {
@@ -172,22 +183,36 @@ func upPartHandler(w http.ResponseWriter, r *http.Request) {
 
 	var up_part Part
 	json.Unmarshal(data, &up_part)
-	// TODO - Garantir que new_part seja um valor válido (não fazio ou com value negativo por exemplo)
-	for i, part := range Parts {
-		if part.Id == up_part.Id {
-			fmt.Println(up_part, i)
-			Parts[i].Name = up_part.Name
-			Parts[i].Brand = up_part.Brand
-			Parts[i].Value = up_part.Value
 
-			json_encoder := json.NewEncoder(w)
-			json_encoder.Encode(up_part)
-			w.WriteHeader(http.StatusOK)
-			break
-		}
+	// Part existe
+	row := db.QueryRow(`
+		select id, name, brand, value
+		from Part
+		where id = ?
+	`, up_part.Id)
+
+	var temp_part Part
+	err = row.Scan(&temp_part.Id, &temp_part.Name, &temp_part.Brand, &temp_part.Value)
+
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
 	}
 
-	w.WriteHeader(http.StatusBadRequest)
+	//update
+	_, err = db.Exec(`
+		update Part 
+		set name = ?, brand = ?, value = ?
+	`, up_part.Name, up_part.Brand, up_part.Value)
+
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	json_encoder := json.NewEncoder(w)
+	json_encoder.Encode(up_part)
+	w.WriteHeader(http.StatusOK)
 }
 
 func handler() {
