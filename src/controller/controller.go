@@ -188,9 +188,9 @@ func UpPart(w http.ResponseWriter, r *http.Request) {
 	view.ResponsePart(w, up_part)
 }
 
-func CreateTable() {
+func OpenDB() {
 	var err error
-	model.DB, err = sql.Open("mysql", "root:xniC6DH rZcN84bxniC6DH rZcN84b@tcp(localhost:3306)/suzana_motorcycle_parts")
+	model.DB, err = sql.Open("mysql", "root:250721@tcp(172.17.0.2:3306)/suzana_motorcycle_parts")
 
 	if err != nil {
 		log.Fatal(err.Error())
@@ -201,15 +201,10 @@ func CreateTable() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
+}
 
-	_, err = model.DB.Exec(`
-		drop table if exists Part
-	`)
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
+func CreateTable() {
+	var err error
 	_, err = model.DB.Exec(`
 		create table if not exists Part (
 			id int not null auto_increment,
@@ -224,28 +219,15 @@ func CreateTable() {
 		log.Fatal(err.Error())
 	}
 
-	_, err = model.DB.Exec(`insert into Part (name, brand, value) values 
-		("Luva para Motociclista Dedo Longo Tam. P Material Emborrachado e Couro, Branco/ Preto", "Multilaser", 47.64),
-		("Capacete Moto R8 Pro Tork 56 Viseira Fume Preto/Vermelho", "Tork", 169.90),
-		("Lenço de cabeça, Romacci Máscara facial Fleece máscara facial cachecol para exterior à prova de vento à prova de frio equipamento de equitação para máscara de inverno", "Romacci", 99.19)
-	`)
+	/*
+		_, err = model.DB.Exec(`insert into Part (name, brand, value) values
+			("Luva para Motociclista Dedo Longo Tam. P Material Emborrachado e Couro, Branco/ Preto", "Multilaser", 47.64),
+			("Capacete Moto R8 Pro Tork 56 Viseira Fume Preto/Vermelho", "Tork", 169.90),
+			("Lenço de cabeça, Romacci Máscara facial Fleece máscara facial cachecol para exterior à prova de vento à prova de frio equipamento de equitação para máscara de inverno", "Romacci", 99.19)
+		`)
 
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-}
-
-func OpenDB() {
-	var err error
-	model.DB, err = sql.Open("mysql", "root:xniC6DH rZcN84bxniC6DH rZcN84b@tcp(localhost:3306)/suzana_motorcycle_parts")
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	err = model.DB.Ping()
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	*/
 }

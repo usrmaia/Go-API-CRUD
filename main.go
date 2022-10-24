@@ -13,10 +13,11 @@ import (
 
 func main() {
 	controller.OpenDB()
+	controller.CreateTable()
 	router.Router()
 
 	fmt.Println("Server On:")
-	fmt.Println("http://localhost:9090/")
+	fmt.Println("http://???.???.???.???:9090/")
 
 	addr := ":9090"
 	var err error
