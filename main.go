@@ -15,9 +15,10 @@ func main() {
 	controller.OpenDB()
 	router.Router()
 
-	fmt.Println("Server On")
+	fmt.Println("Server On:")
+	fmt.Println("http://localhost:9090/")
 
-	addr := ":1357"
+	addr := ":9090"
 	var err error
 	err = http.ListenAndServe(addr, nil)
 

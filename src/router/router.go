@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -39,7 +38,6 @@ func routerPart(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if r.Method == "DELETE" {
-			fmt.Println("chegou aqui", id)
 			controller.DelPart(w, r, id)
 			return
 		} else if r.Method == "GET" {
@@ -68,7 +66,7 @@ func routerPartSimple(w http.ResponseWriter, r *http.Request) {
 }
 
 func Router() {
-	//http.HandleFunc("/", controller.Home)
+	http.HandleFunc("/", controller.Home)
 	http.HandleFunc("/parts", routerParts)
 	http.HandleFunc("/part", routerPartSimple)
 	http.HandleFunc("/part/", routerPart)

@@ -11,10 +11,11 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 
 	"github.com/usrmaia/GO-API-CRUD/src/model"
+	"github.com/usrmaia/GO-API-CRUD/src/view"
 )
 
 func Home(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Home")
+	w.WriteHeader(http.StatusOK)
 }
 
 func ReturnParts(w http.ResponseWriter, r *http.Request) {
@@ -50,8 +51,7 @@ func ReturnParts(w http.ResponseWriter, r *http.Request) {
 		fmt.Println(err)
 	}
 
-	json_encoder := json.NewEncoder(w)
-	json_encoder.Encode(Parts)
+	view.ResponseParts(w, Parts)
 }
 
 func AddPart(w http.ResponseWriter, r *http.Request) {
@@ -88,8 +88,7 @@ func AddPart(w http.ResponseWriter, r *http.Request) {
 
 	new_part.Id = int(id)
 
-	json_encoder := json.NewEncoder(w)
-	json_encoder.Encode(new_part)
+	view.ResponsePart(w, new_part)
 }
 
 func ReturnAPart(w http.ResponseWriter, r *http.Request, id int) {
@@ -110,8 +109,7 @@ func ReturnAPart(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 
-	json_encoder := json.NewEncoder(w)
-	json_encoder.Encode(part)
+	view.ResponsePart(w, part)
 }
 
 // TODO - Retornar json mostrando Part deletada
@@ -142,9 +140,7 @@ func DelPart(w http.ResponseWriter, r *http.Request, id int) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
-	json_encoder := json.NewEncoder(w)
-	json_encoder.Encode(temp_part)
+	view.ResponsePart(w, temp_part)
 }
 
 func UpPart(w http.ResponseWriter, r *http.Request) {
@@ -189,8 +185,7 @@ func UpPart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	json_encoder := json.NewEncoder(w)
-	json_encoder.Encode(up_part)
+	view.ResponsePart(w, up_part)
 }
 
 func CreateTable() {
