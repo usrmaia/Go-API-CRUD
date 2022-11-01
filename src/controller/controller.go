@@ -203,7 +203,7 @@ func OpenDB() {
 	}
 }
 
-func CreateTable() {
+func InitTable() {
 	var err error
 	_, err = model.DB.Exec(`
 		create table if not exists Part (
@@ -218,16 +218,4 @@ func CreateTable() {
 	if err != nil {
 		log.Fatal(err.Error())
 	}
-
-	/*
-		_, err = model.DB.Exec(`insert into Part (name, brand, value) values
-			("Luva para Motociclista Dedo Longo Tam. P Material Emborrachado e Couro, Branco/ Preto", "Multilaser", 47.64),
-			("Capacete Moto R8 Pro Tork 56 Viseira Fume Preto/Vermelho", "Tork", 169.90),
-			("Lenço de cabeça, Romacci Máscara facial Fleece máscara facial cachecol para exterior à prova de vento à prova de frio equipamento de equitação para máscara de inverno", "Romacci", 99.19)
-		`)
-
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-	*/
 }

@@ -13,7 +13,7 @@ import (
 
 func main() {
 	controller.OpenDB()
-	controller.CreateTable()
+	controller.InitTable()
 	router.Router()
 
 	fmt.Println("Server On:")
