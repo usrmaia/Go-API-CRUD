@@ -33,13 +33,13 @@ func OpenDB() {
 	SendMessageClient := pb.NewSendMessageClient(ClientConn)
 
 	req := &pb.RequestDataSourceName{
-		DataSourceName: "root:250721@tcp(172.17.0.2:3306)/suzana_motorcycle_parts",
+		DataSourceName: "root:250721@tcp(172.17.0.3:3306)/suzana_motorcycle_parts",
 	}
 
 	res, err := SendMessageClient.OpenDB(context.Background(), req)
 
 	if err != nil {
-		log.Fatal("Erro ao abrir banco ", err)
+		log.Fatal("Error OpenDB Server API: ", err)
 	}
 
 	fmt.Println("Database Connection Status:", res.GetStatus())

@@ -11,7 +11,7 @@ import (
 
 func main() {
 	var target string
-	target = "localhost:9091"
+	target = "172.17.0.2:9091"
 	controller.ClientConnDial(target)
 	controller.OpenDB()
 	router.Router()
