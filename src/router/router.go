@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/usrmaia/GO-API-CRUD/src/controller"
+	"github.com/usrmaia/Go-API-CRUD/src/controller"
 )
 
 func routerParts(w http.ResponseWriter, r *http.Request) {

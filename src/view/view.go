@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/usrmaia/GO-API-CRUD/src/model"
+	"github.com/usrmaia/Go-API-CRUD/src/model"
 )
 
 func ResponseParts(w http.ResponseWriter, Parts []model.Part) {

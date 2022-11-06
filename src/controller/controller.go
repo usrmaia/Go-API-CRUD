@@ -1,54 +1,107 @@
 package controller
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 
-	_ "github.com/go-sql-driver/mysql"
+	"google.golang.org/grpc"
 
-	"github.com/usrmaia/GO-API-CRUD/src/model"
-	"github.com/usrmaia/GO-API-CRUD/src/view"
+	"github.com/usrmaia/Go-API-CRUD/pb"
+	"github.com/usrmaia/Go-API-CRUD/src/model"
+	"github.com/usrmaia/Go-API-CRUD/src/view"
 )
 
-func Home(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
+var ClientConn *grpc.ClientConn
+var SendMessageClient pb.SendMessageClient
+
+func ClientConnDial(target string) {
+	var err error
+	ClientConn, err = grpc.Dial(target, grpc.WithInsecure())
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	SendMessageClient = pb.NewSendMessageClient(ClientConn)
 }
 
-func ReturnParts(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
+func OpenDB() {
+	SendMessageClient := pb.NewSendMessageClient(ClientConn)
+
+	req := &pb.RequestDataSourceName{
+		DataSourceName: "root:250721@tcp(172.17.0.2:3306)/suzana_motorcycle_parts",
+	}
+
+	res, err := SendMessageClient.OpenDB(context.Background(), req)
+
+	if err != nil {
+		log.Fatal("Erro ao abrir banco ", err)
+	}
+
+	fmt.Println("Database Connection Status:", res.GetStatus())
+}
+
+func Home(w http.ResponseWriter, r *http.Request) {
+	RequestMessage := &pb.RequestMessage{
+		Message: "Test home",
+	}
+
+	res, err := SendMessageClient.Home(context.Background(), RequestMessage)
+
+	if err != nil {
+		fmt.Println("Error Send Home Server API:", err)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	var rows *sql.Rows
+	fmt.Println(res.GetStatus())
+	w.WriteHeader(http.StatusOK)
+}
 
-	var err error
-	rows, err = model.DB.Query(`select id, name, brand, value from Part`)
+func ReturnAPart(w http.ResponseWriter, r *http.Request, id int) {
+	RequestPartID := &pb.RequestPartID{
+		Id: int64(id),
+	}
+	res, err := SendMessageClient.ReturnAPart(context.Background(), RequestPartID)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Println("Error Send ReturnAPart Server API:", err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	part := model.Part{
+		Id:    res.GetId(),
+		Name:  res.GetName(),
+		Brand: res.GetBrand(),
+		Value: res.GetValue(),
+	}
+
+	view.ResponsePart(w, part)
+}
+
+func ReturnParts(w http.ResponseWriter, r *http.Request) {
+	RequestMessage := &pb.RequestMessage{}
+	res, err := SendMessageClient.ReturnParts(context.Background(), RequestMessage)
+
+	if err != nil {
+		fmt.Println("Error Send ReturnParts Server API:", err)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	var Parts []model.Part
-	for rows.Next() {
-		var part model.Part
-		err = rows.Scan(&part.Id, &part.Name, &part.Brand, &part.Value)
-
-		if err != nil {
-			continue
-		}
-
-		Parts = append(Parts, part)
-	}
-
-	err = rows.Close()
-
-	if err != nil {
-		fmt.Println(err)
+	for _, part := range res.GetParts() {
+		Parts = append(Parts, model.Part{
+			Id:    part.GetId(),
+			Name:  part.GetName(),
+			Brand: part.GetBrand(),
+			Value: part.GetValue(),
+		})
 	}
 
 	view.ResponseParts(w, Parts)
@@ -60,87 +113,54 @@ func AddPart(w http.ResponseWriter, r *http.Request) {
 	data, err = ioutil.ReadAll(r.Body)
 
 	if err != nil {
+		fmt.Println("Error ReadAll Request AddPart Server API:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	var new_part model.Part
-	json.Unmarshal(data, &new_part)
+	var Part model.Part
+	json.Unmarshal(data, &Part)
 
-	var result sql.Result
-	result, err = model.DB.Exec(`
-		insert into Part (name, brand, value) values
-		(?, ?, ?)
-	`, new_part.Name, new_part.Brand, new_part.Value)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	RequestAdd := &pb.RequestAdd{
+		Name:  Part.Name,
+		Brand: Part.Brand,
+		Value: Part.Value,
 	}
 
-	var id int64
-	id, err = result.LastInsertId()
+	res, err := SendMessageClient.AddPart(context.Background(), RequestAdd)
 
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	new_part.Id = int(id)
-
-	view.ResponsePart(w, new_part)
-}
-
-func ReturnAPart(w http.ResponseWriter, r *http.Request, id int) {
-	var row *sql.Row
-	row = model.DB.QueryRow(`
-		select id, name, brand, value 
-		from Part
-		where id = ?
-	`, id)
-
-	var part model.Part
-	var err error
-	err = row.Scan(&part.Id, &part.Name, &part.Brand, &part.Value)
-
-	if err != nil {
-		log.Panicln(err.Error())
+		fmt.Println("Error Send AddPart Server API:", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	view.ResponsePart(w, part)
+	Part.Id = res.GetId()
+
+	view.ResponsePart(w, Part)
 }
 
-// TODO - Retornar json mostrando Part deletada
 func DelPart(w http.ResponseWriter, r *http.Request, id int) {
-	//id exists
-	row := model.DB.QueryRow(`
-		select id, name, brand, value
-		from Part
-		where id = ? 
-	`, id)
+	RequestPartID := &pb.RequestPartID{
+		Id: int64(id),
+	}
 
-	var err error
-	var temp_part model.Part
-	err = row.Scan(&temp_part.Id, &temp_part.Name, &temp_part.Brand, &temp_part.Value)
+	res, err := SendMessageClient.DelPart(context.Background(), RequestPartID)
 
 	if err != nil {
+		fmt.Println("Error Send DelPart Server API:", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	_, err = model.DB.Exec(`
-		delete from Part
-		where id = ?
-	`, id)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	Part := model.Part{
+		Id:    res.GetId(),
+		Name:  res.GetName(),
+		Brand: res.GetBrand(),
+		Value: res.GetValue(),
 	}
 
-	view.ResponsePart(w, temp_part)
+	view.ResponsePart(w, Part)
 }
 
 func UpPart(w http.ResponseWriter, r *http.Request) {
@@ -149,73 +169,28 @@ func UpPart(w http.ResponseWriter, r *http.Request) {
 	data, err = ioutil.ReadAll(r.Body)
 
 	if err != nil {
+		fmt.Println("Error ReadAll Request UpPart Server API:", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	var up_part model.Part
-	json.Unmarshal(data, &up_part)
+	var Part model.Part
+	json.Unmarshal(data, &Part)
 
-	// Part existe
-	row := model.DB.QueryRow(`
-		select id
-		from Part
-		where id = ?
-		`, up_part.Id)
+	RequestUp := &pb.RequestUp{
+		Id:    int64(Part.Id),
+		Name:  Part.Name,
+		Brand: Part.Brand,
+		Value: Part.Value,
+	}
 
-	var temp_id int
-	err = row.Scan(&temp_id)
+	_, err = SendMessageClient.UpPart(context.Background(), RequestUp)
 
 	if err != nil {
-		fmt.Println(temp_id)
-		fmt.Println(up_part)
+		fmt.Println("Error Send UpPart Server API:", err)
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
-	//update
-	_, err = model.DB.Exec(`
-		update Part 
-		set name = ?, brand = ?, value = ?
-		where id = ?
-		`, up_part.Name, up_part.Brand, up_part.Value, up_part.Id)
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	view.ResponsePart(w, up_part)
-}
-
-func OpenDB() {
-	var err error
-	model.DB, err = sql.Open("mysql", "root:250721@tcp(172.17.0.2:3306)/suzana_motorcycle_parts")
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-
-	err = model.DB.Ping()
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
-}
-
-func InitTable() {
-	var err error
-	_, err = model.DB.Exec(`
-		create table if not exists Part (
-			id int not null auto_increment,
-			name varchar(500) not null unique,
-			brand varchar(50) not null,
-			value float not null,
-			primary key (id)
-		)
-	`)
-
-	if err != nil {
-		log.Fatal(err.Error())
-	}
+	view.ResponsePart(w, Part)
 }
